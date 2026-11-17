@@ -1,7 +1,8 @@
 // All drawing: the night field, the lantern-keeper, the wisps, the HUD
 // and every screen (title, level-up, pause, victory, game over).
 
-import { CONFIG, PALETTE, ENEMY_TYPES } from './config.js';
+import { CONFIG, PALETTE, ENEMY_TYPES, NIGHTS } from './config.js';
+import { SHOP_ITEMS, loadBank, loadMeta, shopCost } from './meta.js';
 
 function fmtTime(seconds) {
   const s = Math.max(0, Math.floor(seconds));
@@ -48,9 +49,13 @@ function drawButton(ctx, rect, label, hovered, sub) {
 
 /** The night field: gradient sky, ground, tufts, stones and vignette. */
 export function drawBackground(ctx, world, time) {
+  // Each night tints the sky and ground; Night I uses the base palette.
+  const pal = world.night && world.night.palette
+    ? { ...PALETTE, ...world.night.palette }
+    : PALETTE;
   const g = ctx.createLinearGradient(0, 0, 0, CONFIG.height);
-  g.addColorStop(0, PALETTE.skyTop);
-  g.addColorStop(1, PALETTE.skyBottom);
+  g.addColorStop(0, pal.skyTop);
+  g.addColorStop(1, pal.skyBottom);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
 
@@ -100,7 +105,7 @@ export function drawBackground(ctx, world, time) {
   ctx.globalAlpha = 1;
 
   // Ground.
-  ctx.fillStyle = PALETTE.ground;
+  ctx.fillStyle = pal.ground;
   ctx.fillRect(0, CONFIG.height - 120, CONFIG.width, 120);
   ctx.strokeStyle = PALETTE.groundLine;
   ctx.lineWidth = 2;
@@ -550,9 +555,15 @@ export function drawWorld(ctx, world, time) {
     }
     ctx.globalAlpha = 1;
   }
-  // Player (blinks while invulnerable).
+  // Player (blinks while invulnerable) — a wide glow and a gold ring
+  // so the keeper reads at a glance, even in a crowd of wisps.
   if (player.invuln <= 0 || Math.floor(time * 14) % 2 === 0) {
-    drawLantern(ctx, player.x, player.y, player.radius, player.facing, time, 1);
+    drawLantern(ctx, player.x, player.y, player.radius, player.facing, time, 1.25);
+    ctx.strokeStyle = 'rgba(255, 217, 138, 0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 7, 0, Math.PI * 2);
+    ctx.stroke();
   }
   // Dash trail ring.
   if (player.dashTime > 0) {
@@ -653,7 +664,7 @@ export function drawHUD(ctx, world) {
   ctx.fillText(fmtTime(world.time), W / 2, 34);
   ctx.font = '13px Georgia, serif';
   ctx.fillStyle = PALETTE.textDim;
-  ctx.fillText(`Dawn in ${fmtTime(world.dawnIn)}  •  survive until ${fmtTime(CONFIG.gameDuration)}`, W / 2, 54);
+  ctx.fillText(`${world.night.name}  •  Dawn in ${fmtTime(world.dawnIn)}  •  survive until ${fmtTime(CONFIG.gameDuration)}`, W / 2, 54);
   // Dawn progress.
   ctx.fillStyle = '#2a2148';
   ctx.fillRect(W / 2 - 110, 58, 220, 4);
@@ -738,37 +749,104 @@ function drawTitleBackground(ctx, world, time) {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // The keeper stands in the middle, lantern lit.
-  drawLantern(ctx, CONFIG.width / 2, 470, 26, -Math.PI / 2, time, 1.6);
+  // The keeper stands at the field's edge, lantern lit.
+  drawLantern(ctx, 1140, 636, 20, -Math.PI / 2, time, 1.2);
 }
 
-/** Title screen. Returns the Start button rect for clicks. */
-export function drawTitle(ctx, world, time, best, mouse) {
+/** Title screen. Returns the Start, night and shop button rects. */
+export function drawTitle(ctx, world, time, best, mouse, selectedNight = 0) {
   drawTitleBackground(ctx, world, time);
   const W = CONFIG.width;
   ctx.textAlign = 'center';
   ctx.fillStyle = PALETTE.amberBright;
-  ctx.font = 'bold 64px Georgia, serif';
-  ctx.fillText('EMBERFIELD', W / 2, 150);
+  ctx.font = 'bold 60px Georgia, serif';
+  ctx.fillText('EMBERFIELD', W / 2, 132);
   ctx.fillStyle = PALETTE.text;
-  ctx.font = 'italic 26px Georgia, serif';
-  ctx.fillText('Hold the Light', W / 2, 190);
+  ctx.font = 'italic 24px Georgia, serif';
+  ctx.fillText('Hold the Light', W / 2, 170);
   ctx.fillStyle = PALETTE.textDim;
-  ctx.font = '17px Georgia, serif';
-  ctx.fillText('You are the last lantern-keeper. The dark sends its wisps —', W / 2, 232);
-  ctx.fillText('survive the night until dawn (10:00) and the light endures.', W / 2, 256);
+  ctx.font = '16px Georgia, serif';
+  ctx.fillText('You are the last lantern-keeper. The dark sends its wisps —', W / 2, 206);
+  ctx.fillText('survive the night until dawn (10:00) and the light endures.', W / 2, 228);
 
   // How to play.
-  drawPanel(ctx, W / 2 - 300, 292, 600, 124);
+  drawPanel(ctx, W / 2 - 300, 246, 600, 116);
   ctx.fillStyle = PALETTE.text;
-  ctx.font = 'bold 16px Georgia, serif';
-  ctx.fillText('HOW TO PLAY', W / 2, 318);
-  ctx.font = '15px Georgia, serif';
+  ctx.font = 'bold 15px Georgia, serif';
+  ctx.fillText('HOW TO PLAY', W / 2, 270);
+  ctx.font = '14px Georgia, serif';
   ctx.fillStyle = PALETTE.textDim;
-  ctx.fillText('WASD / arrows — move      SPACE — dash      P — pause      M — mute', W / 2, 342);
-  ctx.fillText('Your lantern fires on its own. Gather embers, level up,', W / 2, 364);
-  ctx.fillText('chain kills into streaks — and hold the light until dawn.', W / 2, 386);
-  ctx.fillText('Beware lunging chargers and golden elites: they drop hearts, magnets and novas.', W / 2, 408);
+  ctx.fillText('WASD / arrows — move      SPACE — dash      P — pause      M — mute', W / 2, 292);
+  ctx.fillText('Your lantern fires on its own. Gather embers, level up,', W / 2, 312);
+  ctx.fillText('chain kills into streaks — and hold the light until dawn.', W / 2, 332);
+  ctx.fillText('Beware lunging chargers and golden elites: they drop hearts, magnets and novas.', W / 2, 352);
+
+  // Night select: three escalating runs.
+  ctx.fillStyle = PALETTE.textDim;
+  ctx.font = 'bold 13px Georgia, serif';
+  ctx.fillText('CHOOSE YOUR NIGHT', W / 2, 386);
+  const nights = [];
+  const pillW = 180;
+  const pillH = 34;
+  const pillGap = 14;
+  const pillY = 394;
+  const pillX0 = (W - (pillW * 3 + pillGap * 2)) / 2;
+  NIGHTS.forEach((night, i) => {
+    const x = pillX0 + i * (pillW + pillGap);
+    const rect = { x, y: pillY, w: pillW, h: pillH };
+    nights.push(rect);
+    const selected = i === selectedNight;
+    const hovered = mouse.mouseInside && mouse.mouseX >= x && mouse.mouseX <= x + pillW
+      && mouse.mouseY >= pillY && mouse.mouseY <= pillY + pillH;
+    ctx.fillStyle = selected ? '#ffb347' : hovered ? 'rgba(58, 42, 96, 0.95)' : PALETTE.panel;
+    roundRect(ctx, x, pillY, pillW, pillH, 9);
+    ctx.fill();
+    ctx.strokeStyle = selected ? '#ffd98a' : PALETTE.panelEdge;
+    ctx.lineWidth = selected ? 3 : 2;
+    ctx.stroke();
+    ctx.fillStyle = selected ? '#241505' : PALETTE.text;
+    ctx.font = 'bold 14px Georgia, serif';
+    ctx.fillText(night.name, x + pillW / 2, pillY + 14);
+    ctx.fillStyle = selected ? '#5a3a10' : PALETTE.textDim;
+    ctx.font = '11px Georgia, serif';
+    ctx.fillText(night.sub, x + pillW / 2, pillY + 28);
+  });
+
+  // Lantern Upgrades shop: banked embers buy permanent power.
+  const bank = loadBank();
+  const meta = loadMeta();
+  ctx.fillStyle = PALETTE.textDim;
+  ctx.font = 'bold 13px Georgia, serif';
+  ctx.fillText(`LANTERN UPGRADES  —  EMBER BANK: ${bank}`, W / 2, 448);
+  const shop = [];
+  const shopW = 200;
+  const shopH = 44;
+  const shopGap = 14;
+  const shopY = 456;
+  const shopX0 = (W - (shopW * 3 + shopGap * 2)) / 2;
+  SHOP_ITEMS.forEach((item, i) => {
+    const x = shopX0 + i * (shopW + shopGap);
+    const rect = { x, y: shopY, w: shopW, h: shopH, id: item.id };
+    shop.push(rect);
+    const level = meta[item.id];
+    const maxed = level >= item.max;
+    const cost = maxed ? 0 : shopCost(item, level);
+    const afford = maxed || bank >= cost;
+    const hovered = mouse.mouseInside && mouse.mouseX >= x && mouse.mouseX <= x + shopW
+      && mouse.mouseY >= shopY && mouse.mouseY <= shopY + shopH;
+    ctx.fillStyle = hovered && afford ? 'rgba(58, 42, 96, 0.95)' : PALETTE.panel;
+    roundRect(ctx, x, shopY, shopW, shopH, 9);
+    ctx.fill();
+    ctx.strokeStyle = afford ? PALETTE.panelEdge : 'rgba(74, 63, 122, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = afford ? PALETTE.text : PALETTE.textDim;
+    ctx.font = 'bold 14px Georgia, serif';
+    ctx.fillText(`${item.name}  Lv ${level}/${item.max}`, x + shopW / 2, shopY + 18);
+    ctx.fillStyle = afford ? PALETTE.amberBright : PALETTE.textDim;
+    ctx.font = '12px Georgia, serif';
+    ctx.fillText(maxed ? 'MAXED OUT' : `${cost} embers — ${item.desc}`, x + shopW / 2, shopY + 35);
+  });
 
   // Best result.
   if (best) {
@@ -776,16 +854,16 @@ export function drawTitle(ctx, world, time, best, mouse) {
     ctx.font = '15px Georgia, serif';
     ctx.fillText(
       `Best: ${best.score} points — ${best.result === 'victory' ? 'survived the night' : `fell at ${fmtTime(best.time)}`} (Level ${best.level})`,
-      W / 2, 428,
+      W / 2, 522,
     );
   }
 
-  const startRect = { x: W / 2 - 150, y: 520, w: 300, h: 62 };
+  const startRect = { x: W / 2 - 150, y: 536, w: 300, h: 58 };
   const hovered = mouse.mouseInside && mouse.mouseX >= startRect.x && mouse.mouseX <= startRect.x + startRect.w
     && mouse.mouseY >= startRect.y && mouse.mouseY <= startRect.y + startRect.h;
   drawButton(ctx, startRect, 'LIGHT THE LANTERN', hovered, 'or press Enter');
   ctx.textAlign = 'left';
-  return { start: startRect };
+  return { start: startRect, nights, shop };
 }
 
 /** Level-up choice screen. Returns the three card rects for clicks. */

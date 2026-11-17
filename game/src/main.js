@@ -8,6 +8,7 @@ import { AudioEngine } from './audio.js';
 import { Player } from './player.js';
 import { World } from './world.js';
 import { rollChoices, applyUpgrade } from './upgrades.js';
+import { bankEmbers, buyItem } from './meta.js';
 import { drawWorld, drawHUD, drawTitle, drawLevelUp, drawPaused, drawVictory, drawGameOver } from './render.js';
 import { setupShot } from './shots.js';
 
@@ -53,6 +54,8 @@ function main() {
   let animTime = 0;
   let lastNow = 0;
   let accumulator = 0;
+  /** The night picked on the title screen (0, 1 or 2). */
+  let selectedNight = 0;
 
   /** Fit the 1280x720 canvas into the window, keeping its aspect. */
   function fitCanvas() {
@@ -65,7 +68,7 @@ function main() {
 
   function startGame() {
     rng = makeRng((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
-    world = new World(rng, audio);
+    world = new World(rng, audio, selectedNight);
     player = new Player();
     world.reset(player);
     choices = [];
@@ -80,6 +83,8 @@ function main() {
       level: player.level,
       result,
     };
+    // Embers gathered this run bank into the Lantern Upgrades shop.
+    bankEmbers(world.embersGathered);
     if (!best || entry.score > best.score) {
       best = entry;
       saveBest(entry);
@@ -121,6 +126,19 @@ function main() {
       if (state === 'title' && inRect(rects.start, c.x, c.y)) {
         audio.click();
         startGame();
+      } else if (state === 'title' && rects.nights) {
+        rects.nights.forEach((rect, i) => {
+          if (inRect(rect, c.x, c.y)) {
+            selectedNight = i;
+            audio.click();
+          }
+        });
+        rects.shop?.forEach((rect) => {
+          if (inRect(rect, c.x, c.y)) {
+            if (buyItem(rect.id)) audio.powerup();
+            else audio.click();
+          }
+        });
       } else if (state === 'levelup') {
         rects.cards?.forEach((rect, i) => {
           if (inRect(rect, c.x, c.y)) pickUpgrade(i);
@@ -206,7 +224,7 @@ function main() {
     }
     const mouse = { mouseX: input.mouseX, mouseY: input.mouseY, mouseInside: input.mouseInside };
     if (state === 'title') {
-      rects = drawTitle(ctx, world, animTime, best, mouse);
+      rects = drawTitle(ctx, world, animTime, best, mouse, selectedNight);
     } else if (state === 'playing' || state === 'paused' || state === 'levelup') {
       drawWorld(ctx, world, animTime);
       drawHUD(ctx, world);

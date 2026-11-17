@@ -1,18 +1,22 @@
 // The world: spawning, waves, bosses, bolts, embers, particles and
 // every collision. One fixed step of this is one tick of the night.
 
-import { CONFIG, ENEMY_TYPES, spawnBatchAt, spawnIntervalAt, spawnWeightsAt, eliteChanceAt } from './config.js';
+import { CONFIG, ENEMY_TYPES, NIGHTS, spawnBatchAt, spawnIntervalAt, spawnWeightsAt, eliteChanceAt } from './config.js';
 import { makeEnemy, spawnPoint } from './enemies.js';
 import { makePickup, applyPickup } from './pickups.js';
 import { range, weightedPick } from './random.js';
 
 export class World {
-  constructor(rng, audio) {
+  constructor(rng, audio, nightIndex = 0) {
     this.rng = rng;
     this.audio = audio;
+    /** The night this run plays: difficulty, spawns and palette. */
+    this.night = NIGHTS[nightIndex] ?? NIGHTS[0];
     this.time = 0;
     this.kills = 0;
     this.score = 0;
+    /** Embers gathered this run — banked into the shop at the end. */
+    this.embersGathered = 0;
     this.enemies = [];
     this.bolts = [];
     this.enemyShots = [];
@@ -58,6 +62,7 @@ export class World {
     this.time = 0;
     this.kills = 0;
     this.score = 0;
+    this.embersGathered = 0;
     this.enemies = [];
     this.bolts = [];
     this.enemyShots = [];
@@ -169,15 +174,15 @@ export class World {
   spawnWave(dt) {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
-    this.spawnTimer = spawnIntervalAt(this.time);
+    this.spawnTimer = spawnIntervalAt(this.time) * this.night.spawnMul;
     if (this.enemies.length >= CONFIG.enemyCap) return;
     const batch = spawnBatchAt(this.time);
-    const weights = spawnWeightsAt(this.time);
+    const weights = spawnWeightsAt(this.time, this.night);
     for (let i = 0; i < batch; i++) {
       const kind = weightedPick(this.rng, weights);
       const point = spawnPoint(this.rng);
       // Brutes and spitters sometimes arrive as golden elites.
-      const elite = (kind === 'brute' || kind === 'spitter') && this.rng() < eliteChanceAt(this.time);
+      const elite = (kind === 'brute' || kind === 'spitter') && this.rng() < eliteChanceAt(this.time, this.night);
       this.enemies.push(makeEnemy(kind, point.x, point.y, this.time, this.rng, elite));
     }
   }
@@ -294,8 +299,8 @@ export class World {
     this.comboTimer = 3;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
     this.score += 10 + Math.min(this.combo, 10);
-    this.burst(enemy.x, enemy.y, enemy.def.color, 16, 220, 0.6, 3.5);
-    this.burst(enemy.x, enemy.y, '#ffd98a', 6, 120, 0.4, 2.5);
+    this.burst(enemy.x, enemy.y, enemy.def.color, 12, 220, 0.6, 3.5);
+    this.burst(enemy.x, enemy.y, '#ffd98a', 4, 120, 0.4, 2.5);
     const n = enemy.embers;
     for (let i = 0; i < n; i++) {
       const a = this.rng() * Math.PI * 2;
@@ -482,6 +487,7 @@ export class World {
         em.taken = true;
         player.gainXp(em.value);
         this.score += em.value;
+        this.embersGathered += em.value;
         this.audio.pickup();
         this.burst(em.x, em.y, '#ffd166', 3, 80, 0.3, 2);
       }

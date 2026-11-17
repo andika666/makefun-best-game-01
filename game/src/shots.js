@@ -63,7 +63,7 @@ function stageBackdrop(world, kinds) {
 export function setupShot(scene, seed) {
   const rng = makeRng(seed);
   const audio = silentAudio();
-  const world = new World(rng, audio);
+  const world = new World(rng, audio, scene === 'play' ? 1 : 0);
   const player = new Player();
   world.reset(player);
 
@@ -72,34 +72,34 @@ export function setupShot(scene, seed) {
   }
 
   if (scene === 'play') {
-    simulatePlay(world, player, 150);
-    // Guarantee the shot shows the build at its richest: orbiting embers,
-    // a twin volley, chain lightning, and a boss on the field.
-    player.orbiters = 2;
+    // Night II at 60 s: a readable fight, not a clutter of dots — the
+    // keeper stands clear with room around it, the boss at a distance.
+    simulatePlay(world, player, 60);
+    player.orbiters = 1;
     player.boltsPerVolley = 2;
     player.chainJumps = 1;
     if (!world.bossActive) {
-      const boss = makeEnemy('boss', 950, 180, world.time, rng);
+      const boss = makeEnemy('boss', 980, 170, world.time, rng);
       boss.maxHp = 950;
       boss.hp = boss.maxHp;
       world.enemies.push(boss);
       world.bossActive = boss;
     }
-    // A dense ring of wisps closing in on the keeper, plus a golden elite.
-    const kinds = ['drifter', 'drifter', 'spitter', 'charger', 'splitter', 'brute', 'drifter', 'spitter', 'charger', 'drifter'];
+    // A loose ring of wisps around the keeper, plus a golden elite.
+    const kinds = ['drifter', 'spitter', 'charger', 'splitter', 'brute', 'drifter', 'spitter', 'charger'];
     kinds.forEach((kind, i) => {
       const a = (i / kinds.length) * Math.PI * 2 + 0.4;
-      const r = 150 + (i % 3) * 70;
-      const x = Math.max(50, Math.min(CONFIG.width - 50, player.x + Math.cos(a) * r));
-      const y = Math.max(110, Math.min(CONFIG.height - 50, player.y + Math.sin(a) * r));
+      const r = 190 + (i % 3) * 60;
+      const x = Math.max(60, Math.min(CONFIG.width - 60, player.x + Math.cos(a) * r));
+      const y = Math.max(120, Math.min(CONFIG.height - 60, player.y + Math.sin(a) * r));
       world.enemies.push(makeEnemy(kind, x, y, world.time, rng));
     });
-    const elite = makeEnemy('brute', player.x + 220, player.y - 140, world.time, rng, true);
+    const elite = makeEnemy('brute', player.x + 260, player.y - 150, world.time, rng, true);
     world.enemies.push(elite);
-    world.combo = 12;
+    world.combo = 8;
     world.comboTimer = 2.5;
-    world.maxCombo = 17;
-    world.elitesBanished = 3;
+    world.maxCombo = 12;
+    world.elitesBanished = 2;
     return { state: 'playing', world, player, time: world.time };
   }
 

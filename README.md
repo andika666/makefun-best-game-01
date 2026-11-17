@@ -15,6 +15,8 @@ A 2D canvas survivors-like, built for make.fun's [best-game-01](https://make.fun
 - Banished wisps drop **embers**. Gather them to level up, then pick one of three upgrades: more damage, faster fire, chain lightning, orbiting embers, extra bolts, thicker glass, nova bursts, critical flares, frost wick, a second light, and more. Choices matter — they stack into very different builds.
 - **Enemies:** Drifters chase you, Spitters keep their distance and shoot, Brutes lumber in heavy, Chargers telegraph a lunge, Splitters burst into fast motes, and golden **elites** drop hearts, magnets and novas. Every 2 minutes the **Gloomwarden** boss wakes, fires radial bursts and calls its wisps.
 - **Streaks:** banish wisps within 3 s of each other to build a combo multiplier on your score.
+- **Three nights:** Night I (First Dark), Night II (Thickening Dark) and Night III (Blood Moon) — each night brings chargers, spitters, splitters and elites earlier, spawns faster, and tints the whole field its own palette. Pick your night on the title screen.
+- **Lantern Upgrades:** embers you gather are banked between runs and buy permanent upgrades in the shop on the title screen — Bright Wick (+10% bolt damage), Sturdy Frame (+25 max health), Wide Net (+20% ember magnet), three levels each.
 - **Win:** survive until 10:00 — with a 1–3 star rating for how much light you kept. **Lose:** your lantern goes out. Your best result is kept in localStorage.
 
 ## Feel
@@ -34,7 +36,8 @@ Deterministic screenshots: `index.html?shot=title|play|victory|gameover&seed=7` 
 
 ## Structure
 
-- `game/src/config.js` — tuning, enemy kinds, palette
+- `game/src/config.js` — tuning, enemy kinds, palette, the three nights
+- `game/src/meta.js` — the ember bank and the Lantern Upgrades shop
 - `game/src/random.js` — seeded RNG
 - `game/src/input.js` — keyboard + mouse
 - `game/src/audio.js` — WebAudio synth effects and jingle

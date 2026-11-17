@@ -1,28 +1,30 @@
 // The lantern-keeper: movement, dash, health, XP and levels.
 
 import { CONFIG } from './config.js';
+import { metaBonuses } from './meta.js';
 
 export class Player {
   constructor() {
     const p = CONFIG.player;
+    const meta = metaBonuses();
     this.x = CONFIG.width / 2;
     this.y = CONFIG.height / 2;
     this.radius = p.radius;
     this.speed = p.speed;
-    this.maxHp = p.maxHp;
-    this.hp = p.maxHp;
+    this.maxHp = p.maxHp + meta.maxHpBonus;
+    this.hp = this.maxHp;
     this.level = 1;
     this.xp = 0;
     this.xpNeed = CONFIG.xpBase + CONFIG.xpPerLevel * 1;
     this.pendingLevels = 0;
     /** Seconds until the next lantern bolt. */
     this.fireTimer = 0.4;
-    this.boltDamage = p.boltDamage;
+    this.boltDamage = p.boltDamage * meta.damageMul;
     this.boltSpeed = p.boltSpeed;
     this.fireInterval = p.fireInterval;
     this.boltsPerVolley = p.boltsPerVolley;
     this.chainJumps = p.chainJumps;
-    this.magnetRadius = p.magnetRadius;
+    this.magnetRadius = p.magnetRadius * meta.magnetMul;
     this.pickupRadius = p.pickupRadius;
     this.dashCooldownMax = p.dashCooldown;
     this.dashCooldown = 0;

@@ -145,6 +145,25 @@ export function spawnIntervalAt(time) {
 export function spawnBatchAt(time) {
   return 1 + Math.floor(time / 55);
 }
+/** The three nights: one arena, three escalating runs with their own look. */
+export const NIGHTS = [
+  {
+    id: 0, name: 'Night I', sub: 'First Dark',
+    spawnMul: 1, eliteFrom: 90, chargerFrom: 60, spitterFrom: 45, splitterFrom: 120,
+    palette: null,
+  },
+  {
+    id: 1, name: 'Night II', sub: 'Thickening Dark',
+    spawnMul: 0.85, eliteFrom: 75, chargerFrom: 30, spitterFrom: 30, splitterFrom: 90,
+    palette: { skyTop: '#0d0a2e', skyBottom: '#2a1448', ground: '#171230' },
+  },
+  {
+    id: 2, name: 'Night III', sub: 'Blood Moon',
+    spawnMul: 0.7, eliteFrom: 45, chargerFrom: 20, spitterFrom: 20, splitterFrom: 60,
+    palette: { skyTop: '#160a12', skyBottom: '#3a0f1e', ground: '#1c0f16' },
+  },
+];
+
 /** Enemy health scales with the night. */
 export function hpScaleAt(time) {
   return 1 + (time / 60) * 0.09;
@@ -155,18 +174,18 @@ export function speedScaleAt(time) {
 }
 
 /** Which kinds may appear at a given time, with weights. */
-export function spawnWeightsAt(time) {
+export function spawnWeightsAt(time, night = NIGHTS[0]) {
   const table = [{ kind: 'drifter', weight: 10 }];
-  if (time >= 45) table.push({ kind: 'spitter', weight: 4 + time / 120 });
-  if (time >= 60) table.push({ kind: 'charger', weight: 2 + time / 180 });
+  if (time >= night.spitterFrom) table.push({ kind: 'spitter', weight: 4 + time / 120 });
+  if (time >= night.chargerFrom) table.push({ kind: 'charger', weight: 2 + time / 180 });
   if (time >= 90) table.push({ kind: 'brute', weight: 2 + time / 150 });
-  if (time >= 120) table.push({ kind: 'splitter', weight: 2 + time / 200 });
+  if (time >= night.splitterFrom) table.push({ kind: 'splitter', weight: 2 + time / 200 });
   return table;
 }
 
 /** Chance (0..1) that a brute or spitter spawns as a golden elite. */
-export function eliteChanceAt(time) {
-  return time >= 90 ? 0.06 : 0;
+export function eliteChanceAt(time, night = NIGHTS[0]) {
+  return time >= night.eliteFrom ? 0.06 : 0;
 }
 
 /** Palette: one coherent night-and-lantern look. */
