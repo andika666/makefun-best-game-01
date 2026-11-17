@@ -80,6 +80,48 @@ export const ENEMY_TYPES = {
     core: '#ffb3b3',
     behaviour: 'chase',
   },
+  /** Telegraphed dasher: winds up, then lunges at the keeper. */
+  charger: {
+    name: 'Charger',
+    radius: 15,
+    hp: 22,
+    speed: 88,
+    damage: 12,
+    xp: 2,
+    embers: 2,
+    color: '#f0a832',
+    core: '#ffe9a8',
+    behaviour: 'charge',
+    chargeSpeed: 520,
+    chargeTime: 0.45,
+    chargeCooldown: 2.4,
+  },
+  /** Splits into two fast motes when banished. */
+  splitter: {
+    name: 'Splitter',
+    radius: 18,
+    hp: 30,
+    speed: 70,
+    damage: 10,
+    xp: 2,
+    embers: 2,
+    color: '#7ee787',
+    core: '#d2ffd2',
+    behaviour: 'chase',
+  },
+  /** Tiny fast wisp, born only from a splitter. */
+  mote: {
+    name: 'Mote',
+    radius: 8,
+    hp: 6,
+    speed: 150,
+    damage: 5,
+    xp: 1,
+    embers: 1,
+    color: '#b8f5c8',
+    core: '#ffffff',
+    behaviour: 'chase',
+  },
   boss: {
     name: 'Gloomwarden',
     radius: 46,
@@ -116,8 +158,15 @@ export function speedScaleAt(time) {
 export function spawnWeightsAt(time) {
   const table = [{ kind: 'drifter', weight: 10 }];
   if (time >= 45) table.push({ kind: 'spitter', weight: 4 + time / 120 });
+  if (time >= 60) table.push({ kind: 'charger', weight: 2 + time / 180 });
   if (time >= 90) table.push({ kind: 'brute', weight: 2 + time / 150 });
+  if (time >= 120) table.push({ kind: 'splitter', weight: 2 + time / 200 });
   return table;
+}
+
+/** Chance (0..1) that a brute or spitter spawns as a golden elite. */
+export function eliteChanceAt(time) {
+  return time >= 90 ? 0.06 : 0;
 }
 
 /** Palette: one coherent night-and-lantern look. */

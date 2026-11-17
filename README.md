@@ -12,9 +12,10 @@ A 2D canvas survivors-like, built for make.fun's [best-game-01](https://make.fun
 - **Dash:** Space (brief invulnerability, 3 s cooldown)
 - **Pause:** P or Esc — **Mute:** M
 - Your lantern fires bolts on its own at the nearest wisp.
-- Banished wisps drop **embers**. Gather them to level up, then pick one of three upgrades: more damage, faster fire, chain lightning, orbiting embers, extra bolts, thicker glass, and more. Choices matter — they stack into very different builds.
-- **Enemies:** Drifters chase you, Spitters keep their distance and shoot, Brutes lumber in heavy. Every 2 minutes the **Gloomwarden** boss wakes, fires radial bursts and calls its wisps.
-- **Win:** survive until 10:00. **Lose:** your lantern goes out. Your best result is kept in localStorage.
+- Banished wisps drop **embers**. Gather them to level up, then pick one of three upgrades: more damage, faster fire, chain lightning, orbiting embers, extra bolts, thicker glass, nova bursts, critical flares, frost wick, a second light, and more. Choices matter — they stack into very different builds.
+- **Enemies:** Drifters chase you, Spitters keep their distance and shoot, Brutes lumber in heavy, Chargers telegraph a lunge, Splitters burst into fast motes, and golden **elites** drop hearts, magnets and novas. Every 2 minutes the **Gloomwarden** boss wakes, fires radial bursts and calls its wisps.
+- **Streaks:** banish wisps within 3 s of each other to build a combo multiplier on your score.
+- **Win:** survive until 10:00 — with a 1–3 star rating for how much light you kept. **Lose:** your lantern goes out. Your best result is kept in localStorage.
 
 ## Feel
 
@@ -38,9 +39,10 @@ Deterministic screenshots: `index.html?shot=title|play|victory|gameover&seed=7` 
 - `game/src/input.js` — keyboard + mouse
 - `game/src/audio.js` — WebAudio synth effects and jingle
 - `game/src/player.js` — the lantern-keeper
-- `game/src/enemies.js` — drifter, spitter, brute, boss
+- `game/src/enemies.js` — drifter, spitter, brute, charger, splitter, mote, elite, boss
+- `game/src/pickups.js` — heart, magnet and nova drops
 - `game/src/upgrades.js` — the level-up pool
-- `game/src/world.js` — spawning, waves, bolts, collisions
+- `game/src/world.js` — spawning, waves, bolts, collisions, streaks
 - `game/src/render.js` — field, HUD and every screen
 - `game/src/shots.js` — deterministic shot scenes
 - `game/src/main.js` — boot, state machine, main loop

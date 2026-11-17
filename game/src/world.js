@@ -1,8 +1,9 @@
 // The world: spawning, waves, bosses, bolts, embers, particles and
 // every collision. One fixed step of this is one tick of the night.
 
-import { CONFIG, ENEMY_TYPES, spawnBatchAt, spawnIntervalAt, spawnWeightsAt } from './config.js';
+import { CONFIG, ENEMY_TYPES, spawnBatchAt, spawnIntervalAt, spawnWeightsAt, eliteChanceAt } from './config.js';
 import { makeEnemy, spawnPoint } from './enemies.js';
+import { makePickup, applyPickup } from './pickups.js';
 import { range, weightedPick } from './random.js';
 
 export class World {
@@ -27,6 +28,19 @@ export class World {
     this.shake = 0;
     this.hitStop = 0;
     this.owned = {};
+    /** Pickups lying on the field. */
+    this.pickups = [];
+    /** Kill streak: kills within 3 s of each other. */
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.maxCombo = 0;
+    this.elitesBanished = 0;
+    /** White flash after a nova, fading out. */
+    this.novaFlash = 0;
+    /** Seconds of ember vacuum left. */
+    this.magnetTimer = 0;
+    /** Last wave a minute banner was shown for. */
+    this.lastWaveBanner = 1;
     /** Decorative ground tufts and stones, fixed per run. */
     this.decor = [];
     for (let i = 0; i < 46; i++) {
@@ -58,6 +72,14 @@ export class World {
     this.shake = 0;
     this.hitStop = 0;
     this.owned = {};
+    this.pickups = [];
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.maxCombo = 0;
+    this.elitesBanished = 0;
+    this.novaFlash = 0;
+    this.magnetTimer = 0;
+    this.lastWaveBanner = 1;
   }
 
   get wave() {
@@ -154,8 +176,26 @@ export class World {
     for (let i = 0; i < batch; i++) {
       const kind = weightedPick(this.rng, weights);
       const point = spawnPoint(this.rng);
-      this.enemies.push(makeEnemy(kind, point.x, point.y, this.time, this.rng));
+      // Brutes and spitters sometimes arrive as golden elites.
+      const elite = (kind === 'brute' || kind === 'spitter') && this.rng() < eliteChanceAt(this.time);
+      this.enemies.push(makeEnemy(kind, point.x, point.y, this.time, this.rng, elite));
     }
+  }
+
+  /** A ring of light that burns every wisp around (x, y). */
+  novaBurst(x, y, radius, damage) {
+    this.novaFlash = 0.55;
+    this.addShake(9);
+    this.audio.nova();
+    this.burst(x, y, '#ffd166', 40, 420, 0.7, 4);
+    this.burst(x, y, '#fff3c9', 20, 260, 0.5, 3);
+    for (const e of [...this.enemies]) {
+      if (!e.alive) continue;
+      if (Math.hypot(e.x - x, e.y - y) > radius + e.radius) continue;
+      this.damageEnemy(e, damage, null);
+    }
+    // A nova also sweeps enemy shots out of the sky.
+    this.enemyShots = [];
   }
 
   /** The lantern fires a volley at the nearest enemy. */
@@ -194,8 +234,23 @@ export class World {
   }
 
   damageEnemy(enemy, amount, fromBolt) {
-    const died = enemy.hurt(amount);
-    this.floatText(enemy.x, enemy.y - enemy.radius - 6, String(Math.round(amount)), '#ffe9a8');
+    // Critical flare: a chance to deal double damage.
+    let dealt = amount;
+    let crit = false;
+    if (this.player.critChance > 0 && this.rng() < this.player.critChance) {
+      dealt = amount * 2;
+      crit = true;
+    }
+    const died = enemy.hurt(dealt);
+    this.floatText(
+      enemy.x, enemy.y - enemy.radius - 6,
+      crit ? `${Math.round(dealt)}!` : String(Math.round(dealt)),
+      crit ? '#ffd166' : '#ffe9a8',
+    );
+    // Frost wick: bolts chill the wisp they hit.
+    if (fromBolt && this.player.slowOnHit > 0) {
+      enemy.slowUntil = this.time + 1.2;
+    }
     this.burst(enemy.x, enemy.y, enemy.def.color, 4, 130, 0.35, 2.5);
     if (died) {
       this.killEnemy(enemy);
@@ -222,7 +277,7 @@ export class World {
           vx: Math.cos(a) * 700,
           vy: Math.sin(a) * 700,
           radius: 4,
-          damage: amount * 0.8,
+          damage: dealt * 0.8,
           chainLeft: fromBolt.chainLeft - 1,
           life: 0.5,
         });
@@ -233,7 +288,12 @@ export class World {
 
   killEnemy(enemy) {
     this.kills += 1;
-    this.score += 10;
+    // Kill streak: each banish within 3 s of the last feeds the combo.
+    if (this.comboTimer > 0) this.combo += 1;
+    else this.combo = 1;
+    this.comboTimer = 3;
+    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+    this.score += 10 + Math.min(this.combo, 10);
     this.burst(enemy.x, enemy.y, enemy.def.color, 16, 220, 0.6, 3.5);
     this.burst(enemy.x, enemy.y, '#ffd98a', 6, 120, 0.4, 2.5);
     const n = enemy.embers;
@@ -248,6 +308,22 @@ export class World {
       });
     }
     this.audio.killEnemy();
+    if (enemy.kind === 'splitter') {
+      // A splitter bursts into two fast motes.
+      for (let i = 0; i < 2; i++) {
+        const a = this.rng() * Math.PI * 2;
+        this.enemies.push(makeEnemy(
+          'mote', enemy.x + Math.cos(a) * 16, enemy.y + Math.sin(a) * 16, this.time, this.rng,
+        ));
+      }
+    }
+    if (enemy.elite) {
+      this.elitesBanished += 1;
+      // Elites always drop a pickup: heart, magnet or nova.
+      const kinds = ['heart', 'magnet', 'nova'];
+      this.pickups.push(makePickup(kinds[Math.floor(this.rng() * kinds.length)], enemy.x, enemy.y));
+      this.floatText(enemy.x, enemy.y - 30, 'ELITE BANISHED!', '#ffd166');
+    }
     if (enemy.kind === 'brute') {
       this.hitStop = 0.06;
       this.addShake(5);
@@ -257,6 +333,8 @@ export class World {
       this.addShake(12);
       this.player.heal(20);
       this.floatText(this.player.x, this.player.y - 30, '+20 HP', '#7ee787');
+      this.pickups.push(makePickup('heart', enemy.x - 30, enemy.y));
+      this.pickups.push(makePickup('nova', enemy.x + 30, enemy.y));
       this.bossActive = null;
     }
   }
@@ -266,6 +344,19 @@ export class World {
     this.time += dt;
     if (this.bannerTimer > 0) this.bannerTimer -= dt;
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 26);
+    if (this.novaFlash > 0) this.novaFlash = Math.max(0, this.novaFlash - dt * 1.4);
+    if (this.magnetTimer > 0) this.magnetTimer -= dt;
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.combo = 0;
+    }
+    // A banner at the turn of every minute.
+    const waveNow = this.wave;
+    if (waveNow > this.lastWaveBanner && (waveNow - 1) % 2 === 0) {
+      this.lastWaveBanner = waveNow;
+      this.banner = `WAVE ${waveNow} — THE DARK THICKENS`;
+      this.bannerTimer = 2.2;
+    }
     if (this.hitStop > 0) {
       this.hitStop -= dt;
       return;
@@ -377,12 +468,13 @@ export class World {
     }
     this.enemies = this.enemies.filter((e) => e.alive);
 
-    // XP embers: magnet, pickup.
+    // XP embers: magnet, pickup. An active magnet vacuums the whole field.
+    const magnetRadius = this.magnetTimer > 0 ? 560 : player.magnetRadius;
     for (const em of this.embers) {
       em.bob += dt * 4;
       const d = Math.hypot(player.x - em.x, player.y - em.y);
-      if (d < player.magnetRadius) {
-        const pull = 520 * (1 - d / (player.magnetRadius + 1)) + 120;
+      if (d < magnetRadius) {
+        const pull = 520 * (1 - d / (magnetRadius + 1)) + 120;
         em.x += ((player.x - em.x) / (d || 1)) * pull * dt;
         em.y += ((player.y - em.y) / (d || 1)) * pull * dt;
       }
@@ -395,6 +487,26 @@ export class World {
       }
     }
     this.embers = this.embers.filter((em) => !em.taken);
+
+    // Pickups: bob, fade, and grant their effect on touch.
+    for (const pk of this.pickups) {
+      pk.bob += dt * 4;
+      pk.life -= dt;
+      const d = Math.hypot(player.x - pk.x, player.y - pk.y);
+      if (d < player.pickupRadius + 16) {
+        pk.taken = true;
+        applyPickup(this, pk);
+        this.burst(pk.x, pk.y, '#ffffff', 8, 120, 0.4, 2.5);
+      }
+    }
+    this.pickups = this.pickups.filter((pk) => !pk.taken && pk.life > 0);
+
+    // Second Light: the keeper returns from the dark in a burst of light.
+    if (player.justRevived) {
+      player.justRevived = false;
+      this.floatText(player.x, player.y - 30, 'SECOND LIGHT!', '#ffd166');
+      this.novaBurst(player.x, player.y, 220, 40);
+    }
 
     // Particles and floating text.
     for (const p of this.particles) {

@@ -97,6 +97,42 @@ export const UPGRADES = [
       player.armor += 1;
     },
   },
+  {
+    id: 'nova',
+    name: 'Nova Burst',
+    desc: 'Every level-up erupts in a ring of light',
+    max: 2,
+    apply(player) {
+      player.novaOnLevel += 1;
+    },
+  },
+  {
+    id: 'crit',
+    name: 'Critical Flare',
+    desc: 'Bolts have +15% chance to deal double damage',
+    max: 3,
+    apply(player) {
+      player.critChance += 0.15;
+    },
+  },
+  {
+    id: 'frost',
+    name: 'Frost Wick',
+    desc: 'Bolts chill wisps, slowing them by 35%',
+    max: 2,
+    apply(player) {
+      player.slowOnHit += 1;
+    },
+  },
+  {
+    id: 'revive',
+    name: 'Second Light',
+    desc: 'Once per run, return from the dark at half health',
+    max: 1,
+    apply(player) {
+      player.revives += 1;
+    },
+  },
 ];
 
 /** Roll `count` distinct upgrades the player has not maxed out. */

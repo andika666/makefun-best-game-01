@@ -98,6 +98,9 @@ function main() {
     if (!choice) return;
     applyUpgrade(player, world.owned, choice);
     audio.click();
+    if (player.novaOnLevel > 0) {
+      world.novaBurst(player.x, player.y, 260, 40 * player.novaOnLevel);
+    }
     player.pendingLevels -= 1;
     if (player.pendingLevels > 0) {
       openLevelUp();

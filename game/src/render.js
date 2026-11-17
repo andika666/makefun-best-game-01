@@ -54,14 +54,48 @@ export function drawBackground(ctx, world, time) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
 
-  // Faint stars.
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  for (let i = 0; i < 40; i++) {
+  // Nebula blobs: large, soft, fixed by index so the field stays stable.
+  const nebulae = [
+    { x: 180, y: 130, r: 190, c: 'rgba(88, 60, 180, 0.16)' },
+    { x: 1080, y: 110, r: 170, c: 'rgba(46, 140, 150, 0.13)' },
+    { x: 640, y: 300, r: 230, c: 'rgba(150, 60, 140, 0.10)' },
+    { x: 90, y: 480, r: 150, c: 'rgba(46, 140, 150, 0.10)' },
+    { x: 1150, y: 520, r: 170, c: 'rgba(88, 60, 180, 0.12)' },
+  ];
+  for (const nb of nebulae) {
+    const ng = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, nb.r);
+    ng.addColorStop(0, nb.c);
+    ng.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ng;
+    ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
+  }
+
+  // A pale moon, high on the right.
+  const mg = ctx.createRadialGradient(1120, 92, 4, 1120, 92, 64);
+  mg.addColorStop(0, 'rgba(240, 235, 255, 0.20)');
+  mg.addColorStop(1, 'rgba(240, 235, 255, 0)');
+  ctx.fillStyle = mg;
+  ctx.fillRect(1056, 28, 128, 128);
+  ctx.fillStyle = 'rgba(235, 230, 255, 0.85)';
+  ctx.beginPath();
+  ctx.arc(1120, 92, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(190, 185, 220, 0.5)';
+  ctx.beginPath();
+  ctx.arc(1112, 86, 5, 0, Math.PI * 2);
+  ctx.arc(1128, 100, 7, 0, Math.PI * 2);
+  ctx.arc(1120, 80, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Stars, varied in size and twinkle.
+  for (let i = 0; i < 90; i++) {
     const x = ((i * 173) % CONFIG.width) + ((i * 37) % 50);
     const y = ((i * 97) % 260) + 8;
     const tw = 0.25 + 0.25 * Math.sin(time * 1.3 + i * 2.1);
+    const s = i % 7 === 0 ? 3 : 2;
     ctx.globalAlpha = tw;
-    ctx.fillRect(x, y, 2, 2);
+    ctx.fillStyle = i % 9 === 0 ? '#ffd98a' : '#ffffff';
+    ctx.fillRect(x, y, s, s);
   }
   ctx.globalAlpha = 1;
 
@@ -94,9 +128,17 @@ export function drawBackground(ctx, world, time) {
       ctx.ellipse(d.x, d.y, 7 * d.s, 4 * d.s, 0, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      ctx.fillStyle = 'rgba(255, 179, 71, 0.10)';
+      // A glowing ember-cap mushroom: stem, cap and a soft halo.
+      const glow = ctx.createRadialGradient(d.x, d.y - 4 * d.s, 0, d.x, d.y - 4 * d.s, 10 * d.s);
+      glow.addColorStop(0, 'rgba(255, 179, 71, 0.30)');
+      glow.addColorStop(1, 'rgba(255, 179, 71, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(d.x - 10 * d.s, d.y - 14 * d.s, 20 * d.s, 20 * d.s);
+      ctx.fillStyle = 'rgba(220, 200, 160, 0.8)';
+      ctx.fillRect(d.x - 1.5 * d.s, d.y - 5 * d.s, 3 * d.s, 5 * d.s);
+      ctx.fillStyle = 'rgba(255, 138, 61, 0.85)';
       ctx.beginPath();
-      ctx.arc(d.x, d.y, 3 * d.s, 0, Math.PI * 2);
+      ctx.arc(d.x, d.y - 5 * d.s, 4.5 * d.s, Math.PI, 0);
       ctx.fill();
     }
   }
@@ -137,43 +179,68 @@ function drawLantern(ctx, x, y, radius, facing, flicker, glowScale = 1) {
   ctx.fillStyle = glow;
   ctx.fillRect(x - 130 * glowScale, y - 130 * glowScale, 260 * glowScale, 260 * glowScale);
 
-  // Body: a little keeper with a lantern.
+  // Body: a little keeper in a cloak, holding the lantern out.
   ctx.fillStyle = '#3a2f5e';
   ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.moveTo(x, y - radius - 6);
+  ctx.quadraticCurveTo(x + radius + 6, y - radius * 0.2, x + radius * 0.9, y + radius * 0.9);
+  ctx.quadraticCurveTo(x, y + radius * 0.5, x - radius * 0.9, y + radius * 0.9);
+  ctx.quadraticCurveTo(x - radius - 6, y - radius * 0.2, x, y - radius - 6);
   ctx.fill();
   ctx.strokeStyle = '#6b5aa8';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // Face: two eyes under the hood, watching where the keeper faces.
+  ctx.fillStyle = '#ffe9a8';
+  const ex = Math.cos(facing);
+  const ey = Math.sin(facing);
+  ctx.beginPath();
+  ctx.arc(x + ex * 4 - ey * 4, y + ey * 4 - ex * 4 - 2, 2.2, 0, Math.PI * 2);
+  ctx.arc(x + ex * 4 + ey * 4, y + ey * 4 + ex * 4 - 2, 2.2, 0, Math.PI * 2);
+  ctx.fill();
   // Hood.
   ctx.fillStyle = '#57468f';
   ctx.beginPath();
   ctx.arc(x, y - 4, radius * 0.62, Math.PI, 0);
   ctx.fill();
-  // Lantern flame, flickering.
+  // Lantern: handle, frame and a flickering flame.
+  const lx = x + Math.cos(facing) * (radius + 10);
+  const ly = y + Math.sin(facing) * (radius + 10);
+  ctx.strokeStyle = '#8a7a4a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 8, Math.PI * 0.9, Math.PI * 2.1);
+  ctx.stroke();
   const fl = 1 + Math.sin(flicker * 9) * 0.12;
   ctx.fillStyle = PALETTE.amberBright;
   ctx.beginPath();
-  ctx.ellipse(
-    x + Math.cos(facing) * (radius + 7), y + Math.sin(facing) * (radius + 7),
-    6 * fl, 8 * fl, facing, 0, Math.PI * 2,
-  );
+  ctx.ellipse(lx, ly, 6 * fl, 8 * fl, facing, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#fff3c9';
   ctx.beginPath();
-  ctx.arc(x + Math.cos(facing) * (radius + 7), y + Math.sin(facing) * (radius + 7), 2.5, 0, Math.PI * 2);
+  ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function drawEnemy(ctx, e, time) {
+function drawEnemy(ctx, e, time, player) {
   const def = e.def;
   const flash = e.flash > 0;
+  // Where the enemy looks: at the keeper.
+  const look = player ? Math.atan2(player.y - e.y, player.x - e.x) : 0;
+  const lx = Math.cos(look);
+  const ly = Math.sin(look);
   // Shadow.
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(e.x, e.y + e.radius * 0.85, e.radius * 0.9, e.radius * 0.32, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Body.
+  // A faint aura so each wisp reads at a glance.
+  const aura = ctx.createRadialGradient(e.x, e.y, e.radius * 0.4, e.x, e.y, e.radius * 2.1);
+  aura.addColorStop(0, flash ? 'rgba(255,255,255,0.25)' : def.color + '44');
+  aura.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = aura;
+  ctx.fillRect(e.x - e.radius * 2.2, e.y - e.radius * 2.2, e.radius * 4.4, e.radius * 4.4);
+  // Body, shaped by kind.
   ctx.fillStyle = flash ? '#ffffff' : def.color;
   ctx.beginPath();
   if (e.kind === 'brute') {
@@ -186,22 +253,145 @@ function drawEnemy(ctx, e, time) {
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
+  } else if (e.kind === 'spitter') {
+    // A diamond, point first.
+    const r = e.radius * 1.15;
+    ctx.moveTo(e.x + lx * r, e.y + ly * r);
+    ctx.lineTo(e.x - ly * r * 0.8, e.y + lx * r * 0.8);
+    ctx.lineTo(e.x - lx * r, e.y - ly * r);
+    ctx.lineTo(e.x + ly * r * 0.8, e.y - lx * r * 0.8);
+    ctx.closePath();
+  } else if (e.kind === 'charger') {
+    // An arrowhead aimed at the keeper.
+    const r = e.radius * 1.25;
+    const a = Math.atan2(ly, lx);
+    for (let i = 0; i < 3; i++) {
+      const ang = a + (i - 1) * (Math.PI * 0.72);
+      const rr = i === 1 ? r : r * 0.62;
+      const px = e.x + Math.cos(ang) * rr;
+      const py = e.y + Math.sin(ang) * rr;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  } else if (e.kind === 'splitter') {
+    // A blob with two inner orbs, ready to burst.
+    const wob = 1 + Math.sin(time * 5 + e.wobble) * 0.08;
+    ctx.arc(e.x, e.y, e.radius * wob, 0, Math.PI * 2);
+  } else if (e.kind === 'mote') {
+    const wob = 1 + Math.sin(time * 7 + e.wobble) * 0.1;
+    ctx.arc(e.x, e.y, e.radius * wob, 0, Math.PI * 2);
+  } else if (e.kind === 'boss') {
+    // A large wisp with a ragged, flame-like rim.
+    for (let i = 0; i <= 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const rr = e.radius * (1 + 0.14 * Math.sin(a * 3 + time * 2));
+      const px = e.x + Math.cos(a) * rr;
+      const py = e.y + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
   } else {
+    // Drifter: a teardrop wisp with a trailing tail.
     const wob = 1 + Math.sin(time * 5 + e.wobble) * 0.06;
     ctx.arc(e.x, e.y, e.radius * wob, 0, Math.PI * 2);
   }
   ctx.fill();
-  // Core eye.
-  ctx.fillStyle = flash ? '#ffffff' : def.core;
-  ctx.beginPath();
-  ctx.arc(e.x, e.y, e.radius * 0.42, 0, Math.PI * 2);
-  ctx.fill();
+  // Drifter tail.
+  if (e.kind === 'drifter') {
+    ctx.fillStyle = flash ? '#ffffff' : def.color;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(e.x - lx * e.radius * 0.7, e.y - ly * e.radius * 0.7);
+    ctx.quadraticCurveTo(
+      e.x - lx * e.radius * 1.9 + Math.sin(time * 6 + e.wobble) * 6,
+      e.y - ly * e.radius * 1.9,
+      e.x - lx * e.radius * 1.5, e.y - ly * e.radius * 1.5,
+    );
+    ctx.quadraticCurveTo(e.x - lx * e.radius * 1.2, e.y - ly * e.radius * 1.2, e.x - lx * e.radius * 0.7, e.y - ly * e.radius * 0.7);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // Splitter's inner orbs.
+  if (e.kind === 'splitter') {
+    ctx.fillStyle = flash ? '#ffffff' : def.core;
+    ctx.beginPath();
+    ctx.arc(e.x - e.radius * 0.38, e.y - e.radius * 0.2, e.radius * 0.3, 0, Math.PI * 2);
+    ctx.arc(e.x + e.radius * 0.38, e.y + e.radius * 0.2, e.radius * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Eyes that watch the keeper (all kinds but the mote, which gets one).
+  const eyeR = e.kind === 'mote' ? e.radius * 0.42 : e.radius * 0.24;
+  const eyeOff = e.radius * 0.34;
+  const eyeFwd = e.radius * 0.12;
+  ctx.fillStyle = '#ffffff';
+  if (e.kind === 'mote') {
+    ctx.beginPath();
+    ctx.arc(e.x + lx * eyeFwd, e.y + ly * eyeFwd, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(e.x + lx * eyeFwd - ly * eyeOff, e.y + ly * eyeFwd + lx * eyeOff, eyeR, 0, Math.PI * 2);
+    ctx.arc(e.x + lx * eyeFwd + ly * eyeOff, e.y + ly * eyeFwd - lx * eyeOff, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.fillStyle = '#1a1030';
-  ctx.beginPath();
-  ctx.arc(e.x, e.y, e.radius * 0.2, 0, Math.PI * 2);
-  ctx.fill();
+  if (e.kind === 'mote') {
+    ctx.beginPath();
+    ctx.arc(e.x + lx * (eyeFwd + 1), e.y + ly * (eyeFwd + 1), eyeR * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(e.x + lx * (eyeFwd + 1) - ly * eyeOff, e.y + ly * (eyeFwd + 1) + lx * eyeOff, eyeR * 0.5, 0, Math.PI * 2);
+    ctx.arc(e.x + lx * (eyeFwd + 1) + ly * eyeOff, e.y + ly * (eyeFwd + 1) - lx * eyeOff, eyeR * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Angry brows for brutes and chargers.
+  if (e.kind === 'brute' || e.kind === 'charger') {
+    ctx.strokeStyle = '#1a1030';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(e.x + lx * eyeFwd - ly * eyeOff - 3, e.y + ly * eyeFwd + lx * eyeOff - eyeR - 2);
+    ctx.lineTo(e.x + lx * eyeFwd - ly * eyeOff + 4, e.y + ly * eyeFwd + lx * eyeOff - eyeR + 2);
+    ctx.moveTo(e.x + lx * eyeFwd + ly * eyeOff + 3, e.y + ly * eyeFwd - lx * eyeOff - eyeR - 2);
+    ctx.lineTo(e.x + lx * eyeFwd + ly * eyeOff - 4, e.y + ly * eyeFwd - lx * eyeOff - eyeR + 2);
+    ctx.stroke();
+  }
+  // Charger telegraph: a line to its target while it winds up.
+  if (e.kind === 'charger' && e.chargeState === 'windup') {
+    ctx.strokeStyle = 'rgba(255, 93, 93, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(e.x, e.y);
+    ctx.lineTo(e.x + lx * 260, e.y + ly * 260);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Frost ring on chilled wisps.
+  if (e.slowUntil > time) {
+    ctx.strokeStyle = 'rgba(126, 231, 255, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius + 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Golden ring on elites.
+  if (e.elite) {
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius + 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd166';
+    ctx.font = `bold ${Math.round(e.radius * 0.9)}px Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('★', e.x, e.y - e.radius - 12);
+    ctx.textAlign = 'left';
+  }
   // Telegraph ring for spitters about to shoot.
-  if (e.telegraph > 0) {
+  if (e.telegraph > 0 && e.kind === 'spitter') {
     ctx.strokeStyle = '#ff5d5d';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -262,7 +452,7 @@ export function drawWorld(ctx, world, time) {
   }
 
   // Enemies.
-  for (const e of world.enemies) drawEnemy(ctx, e, time);
+  for (const e of world.enemies) drawEnemy(ctx, e, time, world.player);
 
   // Bolts.
   for (const b of world.bolts) {
@@ -297,6 +487,69 @@ export function drawWorld(ctx, world, time) {
     }
   }
 
+  // Pickups: heart, magnet, nova.
+  for (const pk of world.pickups) {
+    const bob = Math.sin(pk.bob) * 3;
+    const fade = pk.life < 3 ? 0.4 + 0.6 * Math.abs(Math.sin(time * 6)) : 1;
+    ctx.globalAlpha = fade;
+    const halo = ctx.createRadialGradient(pk.x, pk.y + bob, 2, pk.x, pk.y + bob, 30);
+    halo.addColorStop(0, pk.kind === 'heart' ? 'rgba(255,107,129,0.35)' : pk.kind === 'magnet' ? 'rgba(126,231,255,0.35)' : 'rgba(255,209,102,0.35)');
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(pk.x - 30, pk.y + bob - 30, 60, 60);
+    if (pk.kind === 'heart') {
+      ctx.fillStyle = '#ff6b81';
+      ctx.beginPath();
+      ctx.moveTo(pk.x, pk.y + bob + 9);
+      ctx.bezierCurveTo(pk.x - 12, pk.y + bob - 2, pk.x - 8, pk.y + bob - 11, pk.x, pk.y + bob - 4);
+      ctx.bezierCurveTo(pk.x + 8, pk.y + bob - 11, pk.x + 12, pk.y + bob - 2, pk.x, pk.y + bob + 9);
+      ctx.fill();
+    } else if (pk.kind === 'magnet') {
+      ctx.strokeStyle = '#7ee7ff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(pk.x, pk.y + bob, 9, Math.PI, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pk.x - 9, pk.y + bob);
+      ctx.lineTo(pk.x - 9, pk.y + bob + 7);
+      ctx.moveTo(pk.x + 9, pk.y + bob);
+      ctx.lineTo(pk.x + 9, pk.y + bob + 7);
+      ctx.stroke();
+      ctx.fillStyle = '#e8fbff';
+      ctx.fillRect(pk.x - 11, pk.y + bob + 5, 4, 4);
+      ctx.fillRect(pk.x + 7, pk.y + bob + 5, 4, 4);
+    } else {
+      // Nova: an eight-point star.
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 === 0 ? 13 : 5;
+        const px = pk.x + Math.cos(a) * rr;
+        const py = pk.y + bob + Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff3c9';
+      ctx.beginPath();
+      ctx.arc(pk.x, pk.y + bob, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Player dash ghosts: fading lanterns along the trail.
+  if (player.dashTime > 0 || player.trail.length > 1) {
+    for (let i = 2; i < Math.min(player.trail.length, 6); i += 2) {
+      const t = player.trail[i];
+      ctx.globalAlpha = 0.25 * (1 - i / 7);
+      drawLantern(ctx, t.x, t.y, player.radius * 0.85, player.facing, time, 0.7);
+    }
+    ctx.globalAlpha = 1;
+  }
   // Player (blinks while invulnerable).
   if (player.invuln <= 0 || Math.floor(time * 14) % 2 === 0) {
     drawLantern(ctx, player.x, player.y, player.radius, player.facing, time, 1);
@@ -330,6 +583,36 @@ export function drawWorld(ctx, world, time) {
   }
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
+
+  // Darkness beyond the lantern's light: the field fades into night
+  // away from the keeper, so the lantern always feels central.
+  const dg = ctx.createRadialGradient(
+    player.x, player.y, 170,
+    player.x, player.y, 560,
+  );
+  dg.addColorStop(0, 'rgba(2,4,16,0)');
+  dg.addColorStop(1, 'rgba(2,4,16,0.42)');
+  ctx.fillStyle = dg;
+  ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+
+  // Nova flash: a white bloom that fades fast.
+  if (world.novaFlash > 0) {
+    ctx.fillStyle = `rgba(255, 243, 201, ${world.novaFlash * 0.55})`;
+    ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+  }
+
+  // Low health: the edges of the night pulse red.
+  if (player.hp / player.maxHp < 0.3) {
+    const pulse = 0.16 + 0.1 * Math.sin(time * 5);
+    const lg = ctx.createRadialGradient(
+      CONFIG.width / 2, CONFIG.height / 2, 260,
+      CONFIG.width / 2, CONFIG.height / 2, 720,
+    );
+    lg.addColorStop(0, 'rgba(255,0,0,0)');
+    lg.addColorStop(1, `rgba(255, 40, 40, ${pulse})`);
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+  }
 }
 
 /** The HUD: health, XP, level, timer, score, wave, dash. */
@@ -386,6 +669,12 @@ export function drawHUD(ctx, world) {
   ctx.font = '14px Georgia, serif';
   ctx.fillStyle = PALETTE.textDim;
   ctx.fillText(`Wave ${world.wave}   •   ${world.enemies.length} wisps   •   ${world.kills} banished`, W - 16, 50);
+  // Kill streak, when it matters.
+  if (world.combo >= 3) {
+    ctx.fillStyle = '#ffd166';
+    ctx.font = 'bold 16px Georgia, serif';
+    ctx.fillText(`STREAK x${world.combo}`, W - 16, 72);
+  }
   ctx.textAlign = 'left';
 
   // Dash cooldown, bottom left.
@@ -470,15 +759,16 @@ export function drawTitle(ctx, world, time, best, mouse) {
   ctx.fillText('survive the night until dawn (10:00) and the light endures.', W / 2, 256);
 
   // How to play.
-  drawPanel(ctx, W / 2 - 300, 292, 600, 108);
+  drawPanel(ctx, W / 2 - 300, 292, 600, 124);
   ctx.fillStyle = PALETTE.text;
   ctx.font = 'bold 16px Georgia, serif';
   ctx.fillText('HOW TO PLAY', W / 2, 318);
   ctx.font = '15px Georgia, serif';
   ctx.fillStyle = PALETTE.textDim;
-  ctx.fillText('WASD / arrows — move      SPACE — dash      P — pause      M — mute', W / 2, 344);
-  ctx.fillText('Your lantern fires on its own. Gather embers, level up,', W / 2, 368);
-  ctx.fillText('choose upgrades — and hold the light until dawn.', W / 2, 388);
+  ctx.fillText('WASD / arrows — move      SPACE — dash      P — pause      M — mute', W / 2, 342);
+  ctx.fillText('Your lantern fires on its own. Gather embers, level up,', W / 2, 364);
+  ctx.fillText('chain kills into streaks — and hold the light until dawn.', W / 2, 386);
+  ctx.fillText('Beware lunging chargers and golden elites: they drop hearts, magnets and novas.', W / 2, 408);
 
   // Best result.
   if (best) {
@@ -580,7 +870,7 @@ export function drawPaused(ctx, mouse) {
   return { resume, restart };
 }
 
-function drawEndPanel(ctx, title, titleColor, subtitle, stats, mouse, primaryLabel) {
+function drawEndPanel(ctx, title, titleColor, subtitle, stats, mouse, primaryLabel, stars = 0) {
   const W = CONFIG.width;
   const H = CONFIG.height;
   ctx.fillStyle = 'rgba(4, 6, 18, 0.78)';
@@ -592,14 +882,22 @@ function drawEndPanel(ctx, title, titleColor, subtitle, stats, mouse, primaryLab
   ctx.fillStyle = PALETTE.text;
   ctx.font = 'italic 20px Georgia, serif';
   ctx.fillText(subtitle, W / 2, 188);
-  drawPanel(ctx, W / 2 - 260, 224, 520, 190);
+  // Star rating, earned by how much light is left.
+  if (stars > 0) {
+    ctx.font = '36px Georgia, serif';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < stars ? '#ffd166' : 'rgba(255, 209, 102, 0.25)';
+      ctx.fillText('★', W / 2 + (i - 1) * 52, 228);
+    }
+  }
+  drawPanel(ctx, W / 2 - 260, 248, 520, 190);
   ctx.fillStyle = PALETTE.text;
   ctx.font = 'bold 18px Georgia, serif';
-  ctx.fillText('THE NIGHT IN NUMBERS', W / 2, 256);
+  ctx.fillText('THE NIGHT IN NUMBERS', W / 2, 280);
   ctx.font = '17px Georgia, serif';
   ctx.fillStyle = PALETTE.textDim;
   stats.forEach((line, i) => {
-    ctx.fillText(line, W / 2, 292 + i * 30);
+    ctx.fillText(line, W / 2, 314 + i * 30);
   });
   const again = { x: W / 2 - 140, y: 452, w: 280, h: 60 };
   const hovered = mouse.mouseInside && mouse.mouseX >= again.x && mouse.mouseX <= again.x + again.w
@@ -609,18 +907,21 @@ function drawEndPanel(ctx, title, titleColor, subtitle, stats, mouse, primaryLab
   return { again };
 }
 
-/** Victory screen. */
+/** Victory screen. Stars: 3 when more than 60% of the light is left. */
 export function drawVictory(ctx, world, mouse) {
   const player = world.player;
+  const hpFrac = player.hp / player.maxHp;
+  const stars = hpFrac >= 0.6 ? 3 : hpFrac >= 0.3 ? 2 : 1;
   const stats = [
     `Time survived: ${fmtTime(world.time)} of ${fmtTime(CONFIG.gameDuration)}`,
     `Wisps banished: ${world.kills}      •      Level reached: ${player.level}`,
+    `Best streak: x${world.maxCombo}      •      Elites banished: ${world.elitesBanished}`,
     `Final score: ${world.score + 1000}`,
   ];
   return drawEndPanel(
     ctx, 'DAWN BREAKS', PALETTE.amberBright,
     'You held the light all night. The field is yours again.',
-    stats, mouse, 'PLAY AGAIN',
+    stats, mouse, 'PLAY AGAIN', stars,
   );
 }
 
@@ -630,6 +931,7 @@ export function drawGameOver(ctx, world, mouse) {
   const stats = [
     `Time survived: ${fmtTime(world.time)} of ${fmtTime(CONFIG.gameDuration)}`,
     `Wisps banished: ${world.kills}      •      Level reached: ${player.level}`,
+    `Best streak: x${world.maxCombo}      •      Elites banished: ${world.elitesBanished}`,
     `Final score: ${world.score}`,
   ];
   return drawEndPanel(

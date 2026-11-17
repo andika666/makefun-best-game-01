@@ -41,6 +41,15 @@ export class Player {
     this.moveX = 0;
     this.moveY = 0;
     this.moving = false;
+    /** Upgrade-granted powers. */
+    this.critChance = 0;
+    this.slowOnHit = 0;
+    this.novaOnLevel = 0;
+    this.revives = 0;
+    /** Set for one frame when Second Light saves the keeper. */
+    this.justRevived = false;
+    /** Recent positions, for the dash-ghost trail. */
+    this.trail = [];
   }
 
   xpNeedFor(level) {
@@ -62,7 +71,15 @@ export class Player {
     if (this.invuln > 0 || this.dashTime > 0) return 0;
     const dealt = Math.max(1, amount - this.armor);
     this.hp = Math.max(0, this.hp - dealt);
-    this.invuln = 0.8;
+    if (this.hp <= 0 && this.revives > 0) {
+      // Second Light: burn a revive, return at half health, untouchable.
+      this.revives -= 1;
+      this.hp = Math.ceil(this.maxHp * 0.5);
+      this.invuln = 2;
+      this.justRevived = true;
+    } else {
+      this.invuln = 0.8;
+    }
     return dealt;
   }
 
@@ -111,6 +128,9 @@ export class Player {
     this.x = Math.max(m + this.radius, Math.min(CONFIG.width - m - this.radius, this.x));
     this.y = Math.max(m + this.radius, Math.min(CONFIG.height - m - this.radius, this.y));
     this.orbitAngle += dt * 3.4;
+    // Keep a short trail for dash ghosts.
+    this.trail.unshift({ x: this.x, y: this.y });
+    if (this.trail.length > 7) this.trail.pop();
   }
 
   get alive() {

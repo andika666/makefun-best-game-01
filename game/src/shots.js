@@ -72,7 +72,34 @@ export function setupShot(scene, seed) {
   }
 
   if (scene === 'play') {
-    simulatePlay(world, player, 100);
+    simulatePlay(world, player, 150);
+    // Guarantee the shot shows the build at its richest: orbiting embers,
+    // a twin volley, chain lightning, and a boss on the field.
+    player.orbiters = 2;
+    player.boltsPerVolley = 2;
+    player.chainJumps = 1;
+    if (!world.bossActive) {
+      const boss = makeEnemy('boss', 950, 180, world.time, rng);
+      boss.maxHp = 950;
+      boss.hp = boss.maxHp;
+      world.enemies.push(boss);
+      world.bossActive = boss;
+    }
+    // A dense ring of wisps closing in on the keeper, plus a golden elite.
+    const kinds = ['drifter', 'drifter', 'spitter', 'charger', 'splitter', 'brute', 'drifter', 'spitter', 'charger', 'drifter'];
+    kinds.forEach((kind, i) => {
+      const a = (i / kinds.length) * Math.PI * 2 + 0.4;
+      const r = 150 + (i % 3) * 70;
+      const x = Math.max(50, Math.min(CONFIG.width - 50, player.x + Math.cos(a) * r));
+      const y = Math.max(110, Math.min(CONFIG.height - 50, player.y + Math.sin(a) * r));
+      world.enemies.push(makeEnemy(kind, x, y, world.time, rng));
+    });
+    const elite = makeEnemy('brute', player.x + 220, player.y - 140, world.time, rng, true);
+    world.enemies.push(elite);
+    world.combo = 12;
+    world.comboTimer = 2.5;
+    world.maxCombo = 17;
+    world.elitesBanished = 3;
     return { state: 'playing', world, player, time: world.time };
   }
 
@@ -80,10 +107,12 @@ export function setupShot(scene, seed) {
     world.time = CONFIG.gameDuration;
     world.kills = 384;
     world.score = 384 * 10 + CONFIG.gameDuration + 14 * 25;
+    world.maxCombo = 21;
+    world.elitesBanished = 6;
     player.level = 14;
     player.xp = 30;
     player.xpNeed = 64;
-    player.hp = 78;
+    player.hp = 82;
     player.orbiters = 2;
     player.boltsPerVolley = 2;
     stageBackdrop(world, ['drifter', 'drifter', 'spitter', 'brute', 'drifter', 'spitter', 'drifter', 'brute']);
@@ -94,6 +123,8 @@ export function setupShot(scene, seed) {
     world.time = 342;
     world.kills = 187;
     world.score = 187 * 10 + 342 + 8 * 25;
+    world.maxCombo = 9;
+    world.elitesBanished = 2;
     player.level = 8;
     player.xp = 12;
     player.xpNeed = 40;

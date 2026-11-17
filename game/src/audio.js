@@ -94,6 +94,17 @@ export class AudioEngine {
   pickup() {
     this.tone(1320, 1760, 0.07, 'sine', 0.09);
   }
+  /** A pickup or power: a bright rising arpeggio. */
+  powerup() {
+    const notes = [784, 988, 1175, 1568];
+    notes.forEach((f, i) => this.tone(f, f, 0.12, 'sine', 0.12, i * 0.05));
+  }
+  /** The nova burst: a deep boom under a bright chime. */
+  nova() {
+    this.noise(0.5, 0.22, 700);
+    this.tone(220, 55, 0.5, 'sawtooth', 0.18);
+    this.tone(1568, 2093, 0.3, 'sine', 0.10, 0.05);
+  }
   hurt() {
     this.tone(160, 60, 0.25, 'sawtooth', 0.20);
     this.noise(0.18, 0.14, 500);
